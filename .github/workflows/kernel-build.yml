@@ -20,26 +20,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: bcm2835
-            arch: arm
-            defconfig: bcm2835_defconfig
-            kernel: kernel
-
-          - name: arm64
-            arch: arm64
-            defconfig: defconfig
-            kernel: kernel8
-
-          - name: bcmrpi
-            arch: arm
-            defconfig: bcmrpi_defconfig
-            kernel: kernel
-
-          - name: bcm2709
-            arch: arm
-            defconfig: bcm2709_defconfig
-            kernel: kernel7
-
           - name: bcm2711
             arch: arm
             defconfig: bcm2711_defconfig
@@ -74,6 +54,11 @@ jobs:
         fetch-depth: 1
         clean: true
 
+    - name: Apply RT patch
+      run: |
+        wget -O- https://mirrors.edge.kernel.org/pub/linux/kernel/projects/rt/6.6/patch-6.6.30-rt30.patch.gz | \
+           gunzip -c | patch -p1
+
     - name: Build kernel ${{matrix.name}}
       run: |
         mkdir ${{github.workspace}}/build
@@ -89,6 +74,8 @@ jobs:
         fi
         make O=${{github.workspace}}/build ${{matrix.defconfig}}
         scripts/config --file ${{github.workspace}}/build/.config --set-val CONFIG_WERROR y
+        scripts/config --file ${{github.workspace}}/build/.config --set-val PREEMPT n
+        scripts/config --file ${{github.workspace}}/build/.config --set-val PREEMPT_RT y
         make O=${{github.workspace}}/build -j ${{env.NUM_JOBS}} $IMAGE modules dtbs
         mkdir -p ${{github.workspace}}/install/boot/overlays
         make O=${{github.workspace}}/build INSTALL_MOD_PATH=${{github.workspace}}/install modules_install
